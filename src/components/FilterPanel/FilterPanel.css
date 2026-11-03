@@ -101,8 +101,9 @@
 }
 
 .fp-segment {
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
+  padding: 0 8px;
   border: 0;
   border-radius: calc(var(--fp-radius) - 3px);
   background: transparent;

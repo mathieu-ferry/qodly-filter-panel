@@ -43,7 +43,7 @@ params: ["@lamp@", 4, 20, 80]
 | Widget | `Text search`, `Number`, `Min / max`, `Date`, `Date range`, `Dropdown`, `Multiple choice`, `Segmented (any / a / b)`, `Checkbox`. |
 | Operator | `Automatic` is `contains` for text searches on text attributes, `=` otherwise. Can be forced (`starts with`, `≥`, …). Ranges always use `≥` and `≤`, multiple choice uses `in`. |
 | Mode | `Visible`, `Locked, read-only` (shown, not editable) or `Locked, hidden`. Locked fields always apply: use them to scope the panel, for example to the current user's store. |
-| Value | Default value of a visible field (Reset goes back to it), or the value of a locked field. Literal text, or a datasource reference: `{currentStore.ID}`, `{session:user.ID}` (`namespace:name.path`). Ranges are written `20~80`, lists `a,b`. |
+| Value | Default value of a visible field (Reset goes back to it), or the value of a locked field. Literal text, or a datasource reference: `{currentStore.ID}`, `{session:user.ID}` (`namespace:name.path`). Ranges are written `20~80`, lists `a,b`. A locked field bound to a datasource that has no value yet holds the query back until the datasource gets one, and the panel queries again when it changes. |
 | Choices from | For choice widgets. `Automatic`: entities of the related dataclass when the path ends on a related primary key (`category.ID`), Yes / No for booleans, distinct values otherwise. Or force `Distinct values`, `Related entities` or `Fixed list`. |
 | Choice label attribute | Attribute of the related dataclass shown in the list (`name`, `label`…). |
 | Fixed choices | `value:Label` pairs separated by commas: `true:In stock, false:Sold out`. For a checkbox, the value used when checked (default `true`). |

@@ -29,6 +29,8 @@ interface IEntitySelSource {
 
 interface ISource {
   getValue(path?: string): Promise<unknown>;
+  addListener(event: string, listener: () => void): void;
+  removeListener(event: string, listener: () => void): void;
 }
 
 const FilterPanel: FC<IFilterPanelProps> = ({
@@ -66,25 +68,39 @@ const FilterPanel: FC<IFilterPanelProps> = ({
   const latest = useRef(0);
   const typingTimer = useRef<number>();
   const prefix = urlKey || ds?.id || 'filter';
+  const fieldsSignature = JSON.stringify(fields);
+  // Bumped when a datasource used in a field value changes: values are resolved again
+  const [refStamp, setRefStamp] = useState(0);
+
+  const getRefSource = useCallback(
+    (text: string): { source?: ISource; path?: string } => {
+      const ref = text.trim().match(DS_REF);
+      if (!ref) return {};
+      const [, namespace, name, path] = ref;
+      const source = window.DataSource.getSource(name, namespace || webformPath) as unknown as
+        | ISource
+        | undefined;
+      return { source, path: path ? path.slice(1) : undefined };
+    },
+    [webformPath],
+  );
 
   // A field value from its "value" setting: literal text, or {name.path} / {namespace:name.path}
   const resolveValue = useCallback(
     async (field: IField): Promise<TValue> => {
       const text = (field.value || '').trim();
       if (!text) return emptyValue(field);
-      const ref = text.match(DS_REF);
-      if (!ref) return deserialize(field, text);
-      const [, namespace, name, path] = ref;
-      const source = window.DataSource.getSource(name, namespace || webformPath) as unknown as ISource | undefined;
+      if (!DS_REF.test(text)) return deserialize(field, text);
+      const { source, path } = getRefSource(text);
       if (!source) {
-        console.warn(`FilterPanel: datasource "${name}" not found for field ${field.attribute}`);
+        console.warn(`FilterPanel: datasource ${text} not found for field ${field.attribute}`);
         return emptyValue(field);
       }
-      const v = await source.getValue(path ? path.slice(1) : undefined);
+      const v = await source.getValue(path);
       if (v === null || v === undefined) return emptyValue(field);
       return Array.isArray(v) ? v.map(String) : typeof v === 'boolean' ? v : String(v);
     },
-    [webformPath],
+    [getRefSource],
   );
 
   const writeUrl = useCallback(
@@ -99,7 +115,8 @@ const FilterPanel: FC<IFilterPanelProps> = ({
       });
       if (si >= 0 && si !== defaultSort) params.set(`${prefix}.sort`, String(si));
       const url = `${window.location.pathname}?${params.toString()}${window.location.hash}`;
-      if (url === `${window.location.pathname}${window.location.search}${window.location.hash}`) return;
+      if (url === `${window.location.pathname}${window.location.search}${window.location.hash}`)
+        return;
       if (urlSync === 'push') window.history.pushState(window.history.state, '', url);
       else window.history.replaceState(window.history.state, '', url);
     },
@@ -111,7 +128,9 @@ const FilterPanel: FC<IFilterPanelProps> = ({
       const params = new URLSearchParams(window.location.search);
       const vals = fields.map((f, i) => {
         const text = params.get(`${prefix}.${fieldKey(f, i)}`);
-        return (f.mode || 'visible') === 'visible' && text !== null ? deserialize(f, text) : base[i];
+        return (f.mode || 'visible') === 'visible' && text !== null
+          ? deserialize(f, text)
+          : base[i];
       });
       const si = params.has(`${prefix}.sort`) ? Number(params.get(`${prefix}.sort`)) : defaultSort;
       return { vals, si: sorts[si] ? si : defaultSort };
@@ -131,7 +150,10 @@ const FilterPanel: FC<IFilterPanelProps> = ({
         const sort = sorts[si]?.expression?.trim();
         try {
           if (query) {
-            await ds.callAction('query', { query: sort ? `${query} order by ${sort}` : query, params });
+            await ds.callAction('query', {
+              query: sort ? `${query} order by ${sort}` : query,
+              params,
+            });
           } else {
             await ds.callAction('all');
             if (sort) await ds.callAction('orderBy', { orderBy: parseSort(sort) });
@@ -145,14 +167,28 @@ const FilterPanel: FC<IFilterPanelProps> = ({
     [ds, fields, sorts, writeUrl, emit],
   );
 
+  // Re-resolve values when a datasource referenced by a field value changes (e.g. the session user loads)
+  useEffect(() => {
+    const sources = [
+      ...new Set(fields.map((f) => getRefSource(f.value || '').source).filter(Boolean)),
+    ] as ISource[];
+    const onRefChange = () => setRefStamp((n) => n + 1);
+    for (const s of sources) s.addListener('changed', onRefChange);
+    return () => {
+      for (const s of sources) s.removeListener('changed', onRefChange);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fieldsSignature, getRefSource]);
+
   // Attribute types and choice lists, then initial values (locked, URL, defaults) and first query
-  const fieldsSignature = JSON.stringify(fields);
   useEffect(() => {
     if (!ds) return;
     let cancelled = false;
     (async () => {
       const root = ds.getDataClass()?.getName() || '';
-      const resolved = await Promise.all(fields.map((f) => (f.attribute ? resolveAttribute(root, f.attribute) : null)));
+      const resolved = await Promise.all(
+        fields.map((f) => (f.attribute ? resolveAttribute(root, f.attribute) : null)),
+      );
       resolved.forEach((info, i) => {
         if (fields[i].attribute && !info) {
           console.warn(`FilterPanel: attribute "${fields[i].attribute}" not found in ${root}`);
@@ -163,20 +199,29 @@ const FilterPanel: FC<IFilterPanelProps> = ({
       defaults.current = base;
       infos.current = resolved;
       const lists = await Promise.all(
-        fields.map((f, i) => (CHOICES.includes(f.widget || '') ? loadOptions(f, resolved[i]).catch(() => []) : [])),
+        fields.map((f, i) =>
+          CHOICES.includes(f.widget || '') ? loadOptions(f, resolved[i]).catch(() => []) : [],
+        ),
       );
       if (cancelled) return;
       setOptions(lists);
       const { vals, si } = readUrl(base);
       setValues(vals);
       setSortIndex(si);
-      if (vals.some((v) => !isEmpty(v)) || si >= 0) apply(vals, si, false);
+      // A locked field bound to a datasource that has no value yet: wait for it rather than widen the scope
+      const waiting = fields.some(
+        (f, i) =>
+          (f.mode || 'visible') !== 'visible' &&
+          DS_REF.test((f.value || '').trim()) &&
+          isEmpty(base[i]),
+      );
+      if (!waiting && (vals.some((v) => !isEmpty(v)) || si >= 0)) apply(vals, si, false);
     })();
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ds, fieldsSignature]);
+  }, [ds, fieldsSignature, refStamp]);
 
   // "One history step per change": going back re-applies the filters found in the URL
   useEffect(() => {

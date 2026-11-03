@@ -1,8 +1,9 @@
-import { EComponentKind, T4DComponentConfig } from '@ws-ui/webform-editor';
+import { EComponentKind, T4DComponentConfig, T4DComponentDatasourceDeclaration } from '@ws-ui/webform-editor';
 import { Settings } from '@ws-ui/webform-editor';
 import { MdFilterList } from 'react-icons/md';
 
 import FilterPanelSettings, { BasicSettings } from './FilterPanel.settings';
+import { DS_REF } from './query';
 import { IField, ISort } from './types';
 
 export default {
@@ -36,6 +37,20 @@ export default {
     ],
     datasources: {
       accept: ['entitySel'],
+      // Qodly only loads the attributes a page declares: declare those read by field values ({name.path})
+      // biome-ignore lint/suspicious/noExplicitAny: Qodly passes its generic element props
+      declarations: (props: any) => {
+        const { datasource = '', fields = [] } = props as { datasource?: string; fields?: IField[] };
+        const declarations: T4DComponentDatasourceDeclaration[] = [{ path: datasource, iterable: true }];
+        for (const field of fields) {
+          const ref = (field.value || '').trim().match(DS_REF);
+          if (ref) {
+            const [, namespace, name, path] = ref;
+            declarations.push({ path: `${namespace ? `${namespace}:` : ''}${name}${path}` });
+          }
+        }
+        return declarations;
+      },
     },
   },
   defaultProps: {
