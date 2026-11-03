@@ -1,0 +1,215 @@
+/* Every part has a stable fp-* class so pages can restyle it with shared CSS.
+   Colours and sizes go through the variables below. */
+.fp-panel {
+  --fp-accent: #2563eb;
+  --fp-text: #1f2937;
+  --fp-muted: #6b7280;
+  --fp-border: #d1d5db;
+  --fp-control-bg: #ffffff;
+  --fp-control-height: 36px;
+  --fp-radius: 8px;
+  --fp-gap: 16px;
+  --fp-font-size: 14px;
+  display: flex;
+  align-items: flex-end;
+  gap: var(--fp-gap);
+  width: 100%;
+  box-sizing: border-box;
+  color: var(--fp-text);
+  font-size: var(--fp-font-size);
+}
+
+.fp-panel *,
+.fp-panel *::before,
+.fp-panel *::after {
+  box-sizing: border-box;
+}
+
+.fp-fields {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(var(--fp-columns), minmax(0, 1fr));
+  gap: var(--fp-gap);
+  align-items: end;
+}
+
+.fp-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.fp-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fp-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fp-input {
+  width: 100%;
+  height: var(--fp-control-height);
+  padding: 0 10px;
+  border: 1px solid var(--fp-border);
+  border-radius: var(--fp-radius);
+  background: var(--fp-control-bg);
+  color: inherit;
+  font: inherit;
+  outline: none;
+}
+
+.fp-input:focus {
+  border-color: var(--fp-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--fp-accent) 20%, transparent);
+}
+
+.fp-input:disabled,
+.fp-readonly .fp-input {
+  background: #f3f4f6;
+  color: var(--fp-muted);
+}
+
+.fp-select {
+  appearance: none;
+  padding-right: 30px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+}
+
+.fp-range {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fp-range-sep {
+  color: var(--fp-muted);
+}
+
+.fp-segmented {
+  display: flex;
+  height: var(--fp-control-height);
+  padding: 3px;
+  gap: 2px;
+  border: 1px solid var(--fp-border);
+  border-radius: var(--fp-radius);
+  background: var(--fp-control-bg);
+}
+
+.fp-segment {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  border-radius: calc(var(--fp-radius) - 3px);
+  background: transparent;
+  color: var(--fp-muted);
+  font: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fp-segment.fp-on {
+  background: var(--fp-accent);
+  color: #ffffff;
+}
+
+.fp-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: var(--fp-control-height);
+  align-items: center;
+}
+
+.fp-chip {
+  padding: 4px 10px;
+  border: 1px solid var(--fp-border);
+  border-radius: 999px;
+  background: var(--fp-control-bg);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.fp-chip.fp-on {
+  border-color: var(--fp-accent);
+  background: color-mix(in srgb, var(--fp-accent) 12%, var(--fp-control-bg));
+  color: var(--fp-accent);
+}
+
+.fp-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: var(--fp-control-height);
+  cursor: pointer;
+}
+
+.fp-checkbox input {
+  accent-color: var(--fp-accent);
+  width: 16px;
+  height: 16px;
+}
+
+.fp-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.fp-button {
+  height: var(--fp-control-height);
+  padding: 0 16px;
+  border-radius: var(--fp-radius);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.fp-apply {
+  border: 1px solid var(--fp-accent);
+  background: var(--fp-accent);
+  color: #ffffff;
+}
+
+.fp-reset {
+  border: 1px solid var(--fp-border);
+  background: var(--fp-control-bg);
+  color: var(--fp-text);
+}
+
+.fp-segment:disabled,
+.fp-chip:disabled,
+.fp-button:disabled {
+  cursor: default;
+}
+
+@media (max-width: 720px) {
+  .fp-panel {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .fp-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .fp-field {
+    grid-column: auto !important;
+  }
+}
+
+.fp-empty {
+  padding: 16px;
+  border: 1px dashed var(--fp-border, #d1d5db);
+  border-radius: 8px;
+  color: #6b7280;
+  font-size: 13px;
+  text-align: center;
+}
