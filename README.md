@@ -1,220 +1,87 @@
-# Overview
+# Qodly Filter Panel
 
-This project allows Qodly Studio Devs to create their own components using the Standalone editor. and leveraging the pwer of the React library,
-This document goal is to help developers learn about the API used to implement their first Qodly custom component
+A Qodly custom component that filters and sorts an entity selection datasource, with no code. Drop it on a page, bind it to the datasource to filter, and list the fields users can filter on. The panel builds the ORDA query itself (with placeholders, so values are never pasted into the query string) and runs it on the datasource, so every component bound to that datasource refreshes.
 
-## Getting Started
+Permissions still apply on the server: `restrict()` events and roles filter what the query returns.
 
-### Prerequisites:
+> Status: 0.1, proof of concept. Tested on 4D main (Nov 2026) with the Qodly renderer.
 
-- [Bun](https://bun.sh/) >= 1.0
+## Setup in Qodly Studio
 
-### Installing
+1. Install the component (see [Build and install](#build-and-install)).
+2. Drop **Filter panel** on a page and set **Filtered datasource** to an entity selection datasource (for example `cars`).
+3. Add one row per filter in **Fields**, and optionally rows in **Sort options**.
+
+### Fields
+
+| Setting | Meaning |
+| --- | --- |
+| Label | Text shown above the control. Can be a translation key of the app. |
+| Attribute path | Attribute to filter, relations allowed: `registration`, `model.category.ID`, `availableToday` (computed attributes need a `query` function). |
+| Widget | `text`, `number`, `range` (min / max), `date`, `daterange`, `select`, `multiselect`, `toggle` (segmented control with an "any" choice), `checkbox`. |
+| Operator | `Automatic` is `contains` for text searches on text attributes, `=` otherwise. Can be forced (`starts with`, `≥`, …). Ranges always use `≥` and `≤`, multiple choice uses `in`. |
+| Mode | `Visible`, `Locked, read-only` (shown, not editable) or `Locked, hidden`. Locked fields always apply: use them to scope the panel (for example the user's agency). |
+| Value | Default value of a visible field (Reset goes back to it), or the value of a locked field. Literal text, or a datasource reference: `{agency.ID}`, `{mySession:user.ID}`. Ranges are written `40~90`, lists `a,b`. |
+| Choices from | For choice widgets. `Automatic`: entities of the related dataclass when the path ends on a related primary key (`color.ID`), Yes / No for booleans, distinct values otherwise. Or force `Distinct values`, `Related entities` or `Fixed list`. |
+| Choice label attribute | Attribute of the related dataclass shown in the list (`label`, `name`, `brandModelString`…). |
+| Fixed choices | `value:Label` pairs separated by commas: `false:Busy, true:Available`. For a checkbox, the value used when checked (default `true`). |
+| "Any" label | Text of the empty choice (`Both`, `All agencies`…). |
+| URL name | Name of the field in the URL (default: last part of the attribute path). |
+| Columns spanned | Width of the field in the grid. |
+
+### Sort options
+
+Each row is a label and an order by expression (`drp desc, registration`). The row marked **Default** applies when the page opens and after Reset.
+
+### Behaviour
+
+- **Apply filters**: `Live` (each change runs the query; typing waits 400 ms) or `With a button`.
+- **Reset button**: goes back to default values and default sort.
+- **Keep filters in URL**: writes visible filter values to the page URL, so a filtered page can be bookmarked or shared. `replace` keeps one history entry; `push` adds one per change and the browser Back button restores the previous filters. Locked fields never go in the URL.
+- **URL prefix**: prefix of the URL parameters, default the datasource name: `?w=main&cars.category=7&cars.drp=40~90`. Each panel on a page needs its own prefix, and only one panel should target a given datasource.
+
+The panel owns the datasource contents: it queries the whole dataclass (plus locked fields). Set the datasource initial value to `all` or `empty`.
+
+### Events
+
+- **On Apply**: after each query, with `{ query, params, sort }`.
+- **On Reset**: after Reset.
+
+## Styling
+
+Every part has a stable class: `fp-panel`, `fp-fields`, `fp-field`, `fp-field-<widget>`, `fp-label`, `fp-input`, `fp-select`, `fp-range`, `fp-segmented`, `fp-segment`, `fp-chip`, `fp-checkbox`, `fp-actions`, `fp-apply`, `fp-reset`; selected segments and chips get `fp-on`, locked read-only fields `fp-readonly`.
+
+Colours and sizes go through CSS variables you can override in a shared CSS class:
+
+```css
+self .fp-panel {
+  --fp-accent: #2563eb;
+  --fp-border: #d1d5db;
+  --fp-control-height: 36px;
+  --fp-radius: 8px;
+  --fp-gap: 16px;
+}
+```
+
+The **Columns** and **Accent color** properties cover the common cases.
+
+## Translations
+
+Field labels, placeholders, choice labels and sort labels are looked up in the app translations (`Shared/i18n.json`) for the user language; text without a translation is shown as is. The Apply, Reset, Sort and Any labels use Qodly's translatable fields when i18n is enabled.
+
+## Build and install
 
 ```bash
-bun install
+npm install
+npm run build   # creates qodly_<app_id>.zip
 ```
 
-### Running
+Upload the zip in Qodly Studio, or unzip it in `Project/Sources/Shared/CustomComponents/qodly_<app_id>/` and add its `dist/manifest.json` entry (with `url`) to `Shared/CustomComponents/manifest.json`.
+
+`@module-federation/vite` is pinned to 1.8.1: later versions bundle the shared `@ws-ui/webform-editor` fallback eagerly, with a bare `import '@ws-ui/code-editor'` the renderer cannot resolve, and the component is reported as "not resolved".
+
+## Development
 
 ```bash
-bun dev
-```
-
-### Generating a new component
-
-In order to add a new component, you can simply run this command:
-
-```bash
-bun generate:component
-```
-
-This will ask you to provide the name of the component and generate a new component in the `components` folder
-
-## Introduction
-
-The `components` folder is where the custom components live, to create your first component you have the freedom to implement it the way you like but we recomment using this component structure
-
-```
-   - components
-      - ExampleComponent
-         - ExampleComponent.build.tsx
-         - ExampleComponent.render.tsx
-         - ExampleComponent.settings.tsx
-         - ExampleComponent.config.tsx
-         - index.tsx
-```
-
-Now let's break this structure down, let's start by the `build` and `render` files:
-
-- `ExampleComponent.build.tsx`: is the component used during the development of the user's webform when the Edit mode is _Enabled_
-
-- `ExampleComponent.render.tsx`: is the component used during the rendering of the user's webform when the Edit mode is _Disabled_
-
-- `ExampleComponent.settings.tsx` is the file containing the settings for the component it's an array of objects the contains the structure of the properties components to customize the component during build mode, for style properties, `Datasources` or even simple properties like changing the a Button component's label
-
-- `ExampleComponent.config.tsx` is the file containing the general information for the component i.e Display Name, Component's icon, supported events, default props and so on.
-
-### API
-
-#### `useEnhancedNode`
-
-A Hook that provides methods and state information related to the corresponding Node that manages the current component.
-
-```javascript
-const { connectors, setProp, ...collected } = useNode(collector);
-```
-
-#### Parameters
-
-`collector`(node: Node) => Collected
-
-A function that collects relevant state information from the corresponding Node. The component will re-render when the values returned by this function changes.
-
-#### Returns
-
-- Object
-  - `id` NodeId
-    The corresponding Node's id
-  - `related` boolean
-    Identifies if the component is being used as related component
-  - `inNodeContext` boolean
-    This is useful if you are designing a User Component that you also wish to be used as an ordinary React Component; this property helps to differentiate whether the component is being used as a User Component or not
-  - `connectors` Object
-    - `connect` (dom: HTMLElement) => HTMLElement
-      Specifies the DOM that represents the User Component
-    - `drag` (dom: HTMLElement) => HTMLElement
-      Specifies the DOM that should be draggable
-  - `actions` Object
-    - `setProp` (props: Object, throttleRate?: number) => void
-      Manipulate the current component's props. Additionally, specify a throttleRate to throttle the changes recoded in history for undo/redo
-    - `setCustom` (custom: Object, throttleRate?: number) => void
-      Manipulate the current component's custom properties. Additionally, specify a throttleRate to throttle the changes recoded in history for undo/redo
-    - `setHidden` (bool: boolean) => void
-      Hide/unhide the current component
-    - `..collected` Collected
-      The collected values returned from the collector
-
-#### Example
-
-Collecting state information
-
-```tsx
-import cn from 'classnames';
-import { useEnhancedNode } from '@ws-ui/webform-editor';
-import { FC } from 'react';
-
-const Example: FC<ExampleProps> = () => {
-  const { isHovered, amIBeingDragged } = useEnhancedNode((node) => ({
-    isHovered: node.events.hovered,
-    amIBeingDragged: node.events.drag,
-  }));
-
-  return (
-    <div
-      className={cn({
-        hovering: isHovered,
-        dragged: amIBeingDragged,
-      })}
-    >
-      Hello World
-    </div>
-  );
-};
-```
-
-#### Connecting the component to be used within the editor
-
-To make the Editor recognize the component you need to connect it through the connect function, Connector must receive a HTML element which can be obtained via an element's `ref`.
-
-```tsx
-import { useEnhancedNode } from '@ws-ui/webform-editor';
-import cn from 'classnames';
-import { FC } from 'react';
-import { IExampleProps } from './Example.config';
-
-const Example: FC<IExampleProps> = ({ text = '', style, classNames = [] }) => {
-  const {
-    connectors: { connect },
-  } = useEnhancedNode();
-
-  return (
-    <div ref={connect} style={style} className={cn(classNames)}>
-      {text}
-    </div>
-  );
-};
-
-export default Example;
-```
-
-### DataSources
-
-#### hooks
-
-##### `useSources`
-
-A Hook that provides state information related to the datasouces bound with the current component.
-
-#### Returns
-
-- Object
-  - `sources` Object
-    - `datasource` datasources.DataSource
-      - `addListener` (method) datasources.DataSource.addListener(eventType: string, callback: Function): void
-      - `removeListener` (method) datasources.DataSource.addListener(eventType: string, callback: Function): void
-      - `getValue` (method) datasources.DataSource.getValue<string>(property?: string | number | undefined, settings?: any): Promise<string>
-      - `setValue` (method) datasources.DataSource.setValue<T = any>(property: string | null, value: T, doFireEvent?: boolean | undefined): Promise<void>
-    - `currentElement` datasources.DataSource
-
-#### Example
-
-```tsx
-import { useRenderer, useSources } from '@ws-ui/webform-editor';
-import cn from 'classnames';
-import { FC, useEffect, useState } from 'react';
-import { IIframeProps } from './Iframe.config';
-
-const Iframe: FC<IIframeProps> = ({
-  url = '',
-  style,
-  className = 'h-80 aspect-video',
-  classNames = [],
-}) => {
-  const { connect } = useRenderer();
-  const [value, setValue] = useState(() => url);
-  const {
-    sources: { datasource: ds },
-  } = useSources();
-
-  useEffect(() => {
-    if (!ds) return;
-
-    const listener = async (/* event */) => {
-      const v = await ds.getValue<string>();
-      setValue(v || url);
-    };
-
-    listener();
-
-    ds.addListener('changed', listener);
-
-    return () => {
-      ds.removeListener('changed', listener);
-    };
-  }, [ds]);
-
-  return (
-    <iframe
-      ref={connect}
-      style={style}
-      className={cn(className, classNames)}
-      src={value}
-      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-      allowFullScreen
-    />
-  );
-};
-
-export default Iframe;
+npm run dev   # standalone editor on http://localhost:5001, proxied to the 4D server (see .env.example)
 ```

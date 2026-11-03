@@ -177,7 +177,9 @@ const Panel: FC<IPanelProps> = ({
           field.mode === 'hidden' ? null : (
             <div
               key={i}
-              className={cn('fp-field', `fp-${field.widget || 'text'}`, { 'fp-readonly': field.mode === 'readonly' })}
+              className={cn('fp-field', `fp-field-${field.widget || 'text'}`, {
+                'fp-readonly': field.mode === 'readonly',
+              })}
               style={{ gridColumn: `span ${Math.max(1, field.span || 1)}` }}
             >
               <span className="fp-label">{t(field.label) || field.attribute}</span>
@@ -186,7 +188,7 @@ const Panel: FC<IPanelProps> = ({
           ),
         )}
         {sorts.length > 0 && (
-          <div className="fp-field fp-sort">
+          <div className="fp-field fp-field-sort">
             <span className="fp-label">{labels.sort}</span>
             <select
               className="fp-input fp-select"
