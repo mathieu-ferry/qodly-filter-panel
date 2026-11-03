@@ -6,7 +6,7 @@ const labelType = isI18nEnabled ? ESetting.I18NFIELD : ESetting.TEXT_FIELD;
 
 const fieldColumns: TSetting[] = [
   { key: 'label', label: 'Label', type: ESetting.TEXT_FIELD },
-  { key: 'attribute', label: 'Attribute path', type: ESetting.TEXT_FIELD, placeholder: 'model.category.ID' },
+  { key: 'attribute', label: 'Attribute path', type: ESetting.TEXT_FIELD, placeholder: 'category.ID' },
   {
     key: 'widget',
     label: 'Widget',
@@ -76,7 +76,7 @@ const fieldColumns: TSetting[] = [
     key: 'staticOptions',
     label: 'Fixed choices',
     type: ESetting.TEXT_FIELD,
-    placeholder: 'true:Busy, false:Available',
+    placeholder: 'true:In stock, false:Sold out',
   },
   { key: 'anyLabel', label: '"Any" label', type: ESetting.TEXT_FIELD },
   { key: 'placeholder', label: 'Placeholder', type: ESetting.TEXT_FIELD },
@@ -86,7 +86,7 @@ const fieldColumns: TSetting[] = [
 
 const sortColumns: TSetting[] = [
   { key: 'label', label: 'Label', type: ESetting.TEXT_FIELD },
-  { key: 'expression', label: 'Order by', type: ESetting.TEXT_FIELD, placeholder: 'drp desc, registration' },
+  { key: 'expression', label: 'Order by', type: ESetting.TEXT_FIELD, placeholder: 'price desc, name' },
   { key: 'isDefault', label: 'Default', type: ESetting.CHECKBOX },
 ];
 

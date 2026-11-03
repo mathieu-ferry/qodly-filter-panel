@@ -1,15 +1,37 @@
 # Qodly Filter Panel
 
-A Qodly custom component that filters and sorts an entity selection datasource, with no code. Drop it on a page, bind it to the datasource to filter, and list the fields users can filter on. The panel builds the ORDA query itself (with placeholders, so values are never pasted into the query string) and runs it on the datasource, so every component bound to that datasource refreshes.
+A [Qodly](https://developer.4d.com/qodly/) custom component that filters and sorts an entity selection datasource without code.
 
-Permissions still apply on the server: `restrict()` events and roles filter what the query returns.
+Drop it on a page, bind it to the datasource to filter, and list the fields users can filter on: text search, dropdown, multiple choice, min / max, dates, segmented choice, checkbox, plus a sort menu. The panel builds the ORDA query itself and runs it on the datasource, so every component bound to that datasource (data table, matrix, counters…) refreshes.
 
-> Status: 0.1, proof of concept. Tested on 4D main (Nov 2026) with the Qodly renderer.
+- Values are passed as query placeholders (`:1`, `:2`…), never pasted into the query string.
+- Relations and computed attributes work: `category.ID`, `supplier.country`, or a computed attribute that has a `query` function.
+- Permissions still apply on the server: `restrict()` events and roles filter what the query returns.
+
+> Status: 0.1. Tested with 4D 21 (Qodly renderer 1.43).
+
+## Example
+
+A page lists products in a data table bound to the `products` datasource (dataclass `Product`). A filter panel bound to the same datasource, with these fields:
+
+| Label | Attribute path | Widget | Notes |
+| --- | --- | --- | --- |
+| Name | `name` | Text search | Contains, by default |
+| Category | `category.ID` | Dropdown | Choices from the related `Category` entities, labelled by `name` |
+| Price | `price` | Min / max | |
+| Availability | `inStock` | Segmented | Fixed choices `true:In stock, false:Sold out`, "Any" label `All` |
+
+and sort options `Name` (`name`, default) and `Price, high to low` (`price desc`), builds queries like:
+
+```text
+name = :1 AND category.ID = :2 AND price >= :3 AND price <= :4 order by price desc
+params: ["@lamp@", 4, 20, 80]
+```
 
 ## Setup in Qodly Studio
 
 1. Install the component (see [Build and install](#build-and-install)).
-2. Drop **Filter panel** on a page and set **Filtered datasource** to an entity selection datasource (for example `cars`).
+2. Drop **Filter panel** on a page and set **Filtered datasource** to an entity selection datasource. Set the datasource initial value to `empty`: the panel runs the first query itself.
 3. Add one row per filter in **Fields**, and optionally rows in **Sort options**.
 
 ### Fields
@@ -17,30 +39,31 @@ Permissions still apply on the server: `restrict()` events and roles filter what
 | Setting | Meaning |
 | --- | --- |
 | Label | Text shown above the control. Can be a translation key of the app. |
-| Attribute path | Attribute to filter, relations allowed: `registration`, `model.category.ID`, `availableToday` (computed attributes need a `query` function). |
-| Widget | `text`, `number`, `range` (min / max), `date`, `daterange`, `select`, `multiselect`, `toggle` (segmented control with an "any" choice), `checkbox`. |
+| Attribute path | Attribute to filter, relations allowed: `name`, `category.ID`, `supplier.country`. |
+| Widget | `Text search`, `Number`, `Min / max`, `Date`, `Date range`, `Dropdown`, `Multiple choice`, `Segmented (any / a / b)`, `Checkbox`. |
 | Operator | `Automatic` is `contains` for text searches on text attributes, `=` otherwise. Can be forced (`starts with`, `≥`, …). Ranges always use `≥` and `≤`, multiple choice uses `in`. |
-| Mode | `Visible`, `Locked, read-only` (shown, not editable) or `Locked, hidden`. Locked fields always apply: use them to scope the panel (for example the user's agency). |
-| Value | Default value of a visible field (Reset goes back to it), or the value of a locked field. Literal text, or a datasource reference: `{agency.ID}`, `{mySession:user.ID}`. Ranges are written `40~90`, lists `a,b`. |
-| Choices from | For choice widgets. `Automatic`: entities of the related dataclass when the path ends on a related primary key (`color.ID`), Yes / No for booleans, distinct values otherwise. Or force `Distinct values`, `Related entities` or `Fixed list`. |
-| Choice label attribute | Attribute of the related dataclass shown in the list (`label`, `name`, `brandModelString`…). |
-| Fixed choices | `value:Label` pairs separated by commas: `false:Busy, true:Available`. For a checkbox, the value used when checked (default `true`). |
-| "Any" label | Text of the empty choice (`Both`, `All agencies`…). |
+| Mode | `Visible`, `Locked, read-only` (shown, not editable) or `Locked, hidden`. Locked fields always apply: use them to scope the panel, for example to the current user's store. |
+| Value | Default value of a visible field (Reset goes back to it), or the value of a locked field. Literal text, or a datasource reference: `{currentStore.ID}`, `{session:user.ID}` (`namespace:name.path`). Ranges are written `20~80`, lists `a,b`. |
+| Choices from | For choice widgets. `Automatic`: entities of the related dataclass when the path ends on a related primary key (`category.ID`), Yes / No for booleans, distinct values otherwise. Or force `Distinct values`, `Related entities` or `Fixed list`. |
+| Choice label attribute | Attribute of the related dataclass shown in the list (`name`, `label`…). |
+| Fixed choices | `value:Label` pairs separated by commas: `true:In stock, false:Sold out`. For a checkbox, the value used when checked (default `true`). |
+| "Any" label | Text of the empty choice (`All`, `Any category`…). |
+| Placeholder | Placeholder of text inputs and dropdowns, or the text next to a checkbox. |
 | URL name | Name of the field in the URL (default: last part of the attribute path). |
 | Columns spanned | Width of the field in the grid. |
 
 ### Sort options
 
-Each row is a label and an order by expression (`drp desc, registration`). The row marked **Default** applies when the page opens and after Reset.
+Each row is a label and an order by expression (`price desc, name`). The row marked **Default** applies when the page opens and after Reset.
 
 ### Behaviour
 
 - **Apply filters**: `Live` (each change runs the query; typing waits 400 ms) or `With a button`.
 - **Reset button**: goes back to default values and default sort.
 - **Keep filters in URL**: writes visible filter values to the page URL, so a filtered page can be bookmarked or shared. `replace` keeps one history entry; `push` adds one per change and the browser Back button restores the previous filters. Locked fields never go in the URL.
-- **URL prefix**: prefix of the URL parameters, default the datasource name: `?w=main&cars.category=7&cars.drp=40~90`. Each panel on a page needs its own prefix, and only one panel should target a given datasource.
+- **URL prefix**: prefix of the URL parameters, default the datasource name: `?w=catalog&products.category=4&products.price=20~80`. Each panel on a page needs its own prefix, and only one panel should target a given datasource.
 
-The panel owns the datasource contents: it queries the whole dataclass (plus locked fields). Set the datasource initial value to `all` or `empty`.
+The panel owns the datasource contents: each query runs on the whole dataclass, with the locked fields as the base scope.
 
 ### Events
 
@@ -57,13 +80,15 @@ Colours and sizes go through CSS variables you can override in a shared CSS clas
 self .fp-panel {
   --fp-accent: #2563eb;
   --fp-border: #d1d5db;
+  --fp-control-bg: #ffffff;
   --fp-control-height: 36px;
   --fp-radius: 8px;
   --fp-gap: 16px;
+  --fp-font-size: 14px;
 }
 ```
 
-The **Columns** and **Accent color** properties cover the common cases.
+The **Columns** and **Accent color** properties cover the common cases. Under 720 px wide the fields stack in one column.
 
 ## Translations
 
@@ -79,6 +104,10 @@ npm run build   # creates qodly_<app_id>.zip
 Upload the zip in Qodly Studio, or unzip it in `Project/Sources/Shared/CustomComponents/qodly_<app_id>/` and add its `dist/manifest.json` entry (with `url`) to `Shared/CustomComponents/manifest.json`.
 
 `@module-federation/vite` is pinned to 1.8.1: later versions bundle the shared `@ws-ui/webform-editor` fallback eagerly, with a bare `import '@ws-ui/code-editor'` the renderer cannot resolve, and the component is reported as "not resolved".
+
+## How it works
+
+The panel calls the bound datasource's `callAction("query", { query, params })` (and `callAction("orderBy", …)` when only sorting), the same entry point as Qodly's built-in "query" standard action. Choice lists come from the REST API (`/rest/<Dataclass>/<attribute>?$distinct=true`, or the related dataclass entities), and attribute types from `/rest/$catalog/<Dataclass>`.
 
 ## Development
 

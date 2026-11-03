@@ -28,7 +28,7 @@ export function getDataClass(name: string): Promise<ICatalogDataClass | null> {
   return catalogCache.get(name)!;
 }
 
-// Walks "model.category.ID" from the root dataclass. Returns null when a step does not exist.
+// Walks "category.parent.ID" from the root dataclass. Returns null when a step does not exist.
 export async function resolveAttribute(root: string, path: string): Promise<IAttrInfo | null> {
   const steps = path.split('.').filter(Boolean);
   let dataClass = root;
