@@ -10,6 +10,10 @@ Drop it on a page, bind it to the datasource to filter, and list the fields user
 
 > Status: 0.1. Tested with 4D 21 (Qodly renderer 1.43).
 
+## Install
+
+Download `qodly-filter-panel_v<version>.zip` from the [latest release](https://github.com/mathieu-ferry/qodly-filter-panel/releases/latest), then upload it in Qodly Studio: see [Installing a custom component](https://developer.4d.com/qodly/4DQodlyPro/pageLoaders/components/uploadCustomComponents#installing-custom-component). The **Filter panel** then appears in the Studio component list.
+
 ## Example
 
 A page lists products in a data table bound to the `products` datasource (dataclass `Product`). A filter panel bound to the same datasource, with these fields:
@@ -30,7 +34,7 @@ params: ["@lamp@", 4, 20, 80]
 
 ## Setup in Qodly Studio
 
-1. Install the component (see [Build and install](#build-and-install)).
+1. Install the component (see [Install](#install)).
 2. Drop **Filter panel** on a page and set **Filtered datasource** to an entity selection datasource. Set the datasource initial value to `empty`: the panel runs the first query itself.
 3. Add one row per filter in **Fields**, and optionally rows in **Sort options**.
 
@@ -92,16 +96,18 @@ The **Columns** and **Accent color** properties cover the common cases. Under 72
 
 ## Translations
 
-Field labels, placeholders, choice labels and sort labels are looked up in the app translations (`Shared/i18n.json`) for the user language; text without a translation is shown as is. The Apply, Reset, Sort and Any labels use Qodly's translatable fields when i18n is enabled.
+Field labels, placeholders, choice labels and sort labels are looked up in the app translations (`Shared/i18n.json`) for the user language; text without a translation is shown as is. Like any component property, the fields and sort options can also be translated per language in Studio's localization mode. The Apply, Reset, Sort and Any labels use Qodly's translatable fields when i18n is enabled.
 
-## Build and install
+## Build from source
 
 ```bash
 npm install
-npm run build   # creates qodly_<app_id>.zip
+npm run build   # creates qodly_<app_id>.zip, the same file as a release
 ```
 
 Upload the zip in Qodly Studio, or unzip it in `Project/Sources/Shared/CustomComponents/qodly_<app_id>/` and add its `dist/manifest.json` entry (with `url`) to `Shared/CustomComponents/manifest.json`.
+
+To publish a release, set `version` in `package.json`, then push a matching tag (`git tag v0.2.0 && git push origin v0.2.0`): the `release` workflow builds the zip and attaches it to a new GitHub release.
 
 `@module-federation/vite` is pinned to 1.8.1: later versions bundle the shared `@ws-ui/webform-editor` fallback eagerly, with a bare `import '@ws-ui/code-editor'` the renderer cannot resolve, and the component is reported as "not resolved".
 
