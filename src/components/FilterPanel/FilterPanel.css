@@ -30,7 +30,7 @@
   display: grid;
   grid-template-columns: repeat(var(--fp-columns), minmax(0, 1fr));
   gap: var(--fp-gap);
-  align-items: end;
+  align-items: start;
 }
 
 .fp-field {
